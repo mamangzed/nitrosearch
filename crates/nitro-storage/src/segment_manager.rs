@@ -507,8 +507,8 @@ impl SegmentManager {
         for (doc_id, (doc, tokens)) in buffer.drain() {
             let doc_num: u32 = doc_id.parse().unwrap_or(0);
 
-            // Serialize and store document
-            let doc_bytes = bincode::serialize(&doc).unwrap_or_default();
+            // Serialize and store document (use JSON for compatibility with untagged enums)
+            let doc_bytes = serde_json::to_vec(&doc).unwrap_or_default();
             builder.add_stored_doc(doc_num, doc_bytes);
 
             // Build postings for each term

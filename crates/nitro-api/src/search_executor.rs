@@ -84,7 +84,8 @@ impl SearchExecutor {
             for segment in segments {
                 if let Ok(doc_id_num) = doc_id.parse::<u32>() {
                     match segment.get_document(doc_id_num) {
-                        Ok(Some(doc_bytes)) => match bincode::deserialize::<Document>(&doc_bytes) {
+                        Ok(Some(doc_bytes)) => match serde_json::from_slice::<Document>(&doc_bytes)
+                        {
                             Ok(doc) => {
                                 doc_lookup.insert(doc_id.clone(), doc);
                                 break;
