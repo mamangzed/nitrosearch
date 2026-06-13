@@ -3,8 +3,8 @@
 //! Implements horizontal partitioning (sharding) to distribute documents
 //! across multiple nodes for large-scale deployments.
 
-use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 /// Shard identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

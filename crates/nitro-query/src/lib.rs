@@ -1,7 +1,7 @@
-pub mod query;
 pub mod filter;
 pub mod parser;
+pub mod query;
 
-pub use query::*;
 pub use filter::*;
 pub use parser::*;
+pub use query::*;

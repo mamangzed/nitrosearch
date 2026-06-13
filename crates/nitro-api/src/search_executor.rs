@@ -68,10 +68,7 @@ impl SearchExecutor {
         for segment_result in segment_results {
             for (doc_id, (score, terms)) in segment_result {
                 *global_scores.entry(doc_id.clone()).or_insert(0.0) += score;
-                global_terms
-                    .entry(doc_id)
-                    .or_default()
-                    .extend(terms);
+                global_terms.entry(doc_id).or_default().extend(terms);
             }
         }
 
@@ -162,7 +159,8 @@ impl SearchExecutor {
                 // Intersect results
                 for (doc_id, left_score) in left_scores {
                     if let Some(&right_score) = right_scores.get(&doc_id) {
-                        *doc_scores.entry(doc_id.clone()).or_insert(0.0) += left_score + right_score;
+                        *doc_scores.entry(doc_id.clone()).or_insert(0.0) +=
+                            left_score + right_score;
 
                         let mut terms = left_matched.get(&doc_id).cloned().unwrap_or_default();
                         terms.extend(right_matched.get(&doc_id).cloned().unwrap_or_default());
@@ -241,9 +239,11 @@ impl SearchExecutor {
                         for doc_id in doc_ids {
                             // Verify all terms exist (simplified)
                             let all_terms_exist = terms.iter().all(|term| {
-                                segment.search_term(term).ok().flatten().map_or(false, |ids| {
-                                    ids.contains(&doc_id)
-                                })
+                                segment
+                                    .search_term(term)
+                                    .ok()
+                                    .flatten()
+                                    .map_or(false, |ids| ids.contains(&doc_id))
                             });
 
                             if all_terms_exist {

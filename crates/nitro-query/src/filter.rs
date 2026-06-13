@@ -2,14 +2,39 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Filter {
-    Eq { field: String, value: FilterValue },
-    Neq { field: String, value: FilterValue },
-    Gt { field: String, value: FilterValue },
-    Gte { field: String, value: FilterValue },
-    Lt { field: String, value: FilterValue },
-    Lte { field: String, value: FilterValue },
-    In { field: String, values: Vec<FilterValue> },
-    Range { field: String, gte: Option<FilterValue>, lte: Option<FilterValue> },
+    Eq {
+        field: String,
+        value: FilterValue,
+    },
+    Neq {
+        field: String,
+        value: FilterValue,
+    },
+    Gt {
+        field: String,
+        value: FilterValue,
+    },
+    Gte {
+        field: String,
+        value: FilterValue,
+    },
+    Lt {
+        field: String,
+        value: FilterValue,
+    },
+    Lte {
+        field: String,
+        value: FilterValue,
+    },
+    In {
+        field: String,
+        values: Vec<FilterValue>,
+    },
+    Range {
+        field: String,
+        gte: Option<FilterValue>,
+        lte: Option<FilterValue>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +57,10 @@ impl Filter {
     pub fn in_list(field: &str, values: Vec<&str>) -> Self {
         Self::In {
             field: field.to_string(),
-            values: values.into_iter().map(|v| FilterValue::String(v.to_string())).collect(),
+            values: values
+                .into_iter()
+                .map(|v| FilterValue::String(v.to_string()))
+                .collect(),
         }
     }
 }

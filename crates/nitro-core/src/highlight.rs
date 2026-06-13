@@ -123,8 +123,14 @@ mod tests {
     fn test_highlight_basic() {
         let highlighter = Highlighter::new();
         let mut fields = HashMap::new();
-        fields.insert("title".to_string(), FieldValue::Text("Rust is awesome".to_string()));
-        let doc = Document { id: "1".to_string(), fields };
+        fields.insert(
+            "title".to_string(),
+            FieldValue::Text("Rust is awesome".to_string()),
+        );
+        let doc = Document {
+            id: "1".to_string(),
+            fields,
+        };
 
         let highlights = highlighter.highlight(&doc, &["rust".to_string()]);
         assert_eq!(highlights.len(), 1);
@@ -135,8 +141,14 @@ mod tests {
     fn test_highlight_multiple_terms() {
         let highlighter = Highlighter::new();
         let mut fields = HashMap::new();
-        fields.insert("title".to_string(), FieldValue::Text("Rust search engine".to_string()));
-        let doc = Document { id: "1".to_string(), fields };
+        fields.insert(
+            "title".to_string(),
+            FieldValue::Text("Rust search engine".to_string()),
+        );
+        let doc = Document {
+            id: "1".to_string(),
+            fields,
+        };
 
         let highlights = highlighter.highlight(&doc, &["rust".to_string(), "engine".to_string()]);
         assert_eq!(highlights.len(), 1);

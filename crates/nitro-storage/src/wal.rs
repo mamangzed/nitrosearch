@@ -119,25 +119,29 @@ impl WalEntry {
         pos += 1;
 
         // Collection
-        let collection_len = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
+        let collection_len =
+            u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
         pos += 4;
         let collection = String::from_utf8_lossy(&data[pos..pos + collection_len]).to_string();
         pos += collection_len;
 
         // Doc ID
-        let doc_id_len = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
+        let doc_id_len =
+            u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
         pos += 4;
         let doc_id = String::from_utf8_lossy(&data[pos..pos + doc_id_len]).to_string();
         pos += doc_id_len;
 
         // Payload
-        let payload_len = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
+        let payload_len =
+            u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]) as usize;
         pos += 4;
         let payload = data[pos..pos + payload_len].to_vec();
         pos += payload_len;
 
         // Checksum
-        let expected_checksum = u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
+        let expected_checksum =
+            u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]]);
         let mut hasher = Hasher::new();
         hasher.update(&data[..pos]);
         let actual_checksum = hasher.finalize();
@@ -168,10 +172,7 @@ impl WalWriter {
     /// Open or create a WAL file
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, WalError> {
         let path = path.as_ref().to_path_buf();
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let file = OpenOptions::new().create(true).append(true).open(&path)?;
 
         Ok(Self { file, path })
     }
@@ -304,11 +305,7 @@ mod tests {
 
     #[test]
     fn test_wal_checksum() {
-        let entry = WalEntry::new_insert(
-            "test".to_string(),
-            "doc1".to_string(),
-            vec![1, 2, 3, 4],
-        );
+        let entry = WalEntry::new_insert("test".to_string(), "doc1".to_string(), vec![1, 2, 3, 4]);
 
         let mut encoded = entry.encode();
 
@@ -327,11 +324,8 @@ mod tests {
 
         let mut writer = WalWriter::open(path).unwrap();
 
-        let entry1 = WalEntry::new_insert(
-            "col1".to_string(),
-            "doc1".to_string(),
-            b"data1".to_vec(),
-        );
+        let entry1 =
+            WalEntry::new_insert("col1".to_string(), "doc1".to_string(), b"data1".to_vec());
         let entry2 = WalEntry::new_delete("col1".to_string(), "doc2".to_string());
 
         writer.write(&entry1).unwrap();

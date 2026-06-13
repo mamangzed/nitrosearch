@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::Document;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Schema {
     pub fields: Vec<FieldDef>,
     #[serde(default)]
@@ -11,7 +11,10 @@ pub struct Schema {
 
 impl Schema {
     pub fn new(fields: Vec<FieldDef>) -> Self {
-        Self { fields, synonyms: HashMap::new() }
+        Self {
+            fields,
+            synonyms: HashMap::new(),
+        }
     }
 
     pub fn with_synonyms(fields: Vec<FieldDef>, synonyms: HashMap<String, Vec<String>>) -> Self {
@@ -20,10 +23,6 @@ impl Schema {
 
     pub fn field(&self, name: &str) -> Option<&FieldDef> {
         self.fields.iter().find(|f| f.name == name)
-    }
-
-    pub fn default() -> Self {
-        Self { fields: Vec::new(), synonyms: HashMap::new() }
     }
 
     pub fn expand_synonyms(&self, query: &str) -> String {

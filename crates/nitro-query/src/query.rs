@@ -1,16 +1,41 @@
-use serde::{Deserialize, Serialize};
 use crate::Filter;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Query {
-    Term { field: String, term: String, boost: Option<f64> },
-    And { left: Box<Query>, right: Box<Query> },
-    Or { left: Box<Query>, right: Box<Query> },
-    Not { query: Box<Query> },
-    Phrase { field: String, terms: Vec<String> },
-    Prefix { field: String, prefix: String },
-    Wildcard { field: String, pattern: String },
-    Fuzzy { field: String, term: String, distance: u8 },
+    Term {
+        field: String,
+        term: String,
+        boost: Option<f64>,
+    },
+    And {
+        left: Box<Query>,
+        right: Box<Query>,
+    },
+    Or {
+        left: Box<Query>,
+        right: Box<Query>,
+    },
+    Not {
+        query: Box<Query>,
+    },
+    Phrase {
+        field: String,
+        terms: Vec<String>,
+    },
+    Prefix {
+        field: String,
+        prefix: String,
+    },
+    Wildcard {
+        field: String,
+        pattern: String,
+    },
+    Fuzzy {
+        field: String,
+        term: String,
+        distance: u8,
+    },
     All,
 }
 

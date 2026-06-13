@@ -11,17 +11,23 @@ impl Tokenizer {
 
     pub fn english() -> Self {
         let stop_words: HashSet<String> = [
-            "the", "is", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-            "of", "with", "by", "from", "as", "if", "then", "so", "not", "be", "have",
-        ].iter().map(|s| s.to_string()).collect();
+            "the", "is", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
+            "with", "by", "from", "as", "if", "then", "so", "not", "be", "have",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         Self::new(stop_words)
     }
 
     pub fn indonesian() -> Self {
         let stop_words: HashSet<String> = [
-            "yang", "dan", "atau", "di", "ke", "dari", "pada", "untuk", "dengan",
-            "tidak", "ada", "ini", "itu", "juga", "sudah", "akan", "bisa", "dapat",
-        ].iter().map(|s| s.to_string()).collect();
+            "yang", "dan", "atau", "di", "ke", "dari", "pada", "untuk", "dengan", "tidak", "ada",
+            "ini", "itu", "juga", "sudah", "akan", "bisa", "dapat",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
         Self::new(stop_words)
     }
 

@@ -58,6 +58,7 @@ pub struct Segment {
     path: PathBuf,
 
     // Memory-mapped files for zero-copy access
+    #[allow(dead_code)]
     terms_mmap: Option<MmapReader>,
     postings_mmap: Option<MmapReader>,
     stored_mmap: Option<MmapReader>,
@@ -186,12 +187,15 @@ impl Segment {
             let postings_len = mmap.read_u64(offset)?;
             offset += 8;
 
-            index.insert(term.clone(), TermInfo {
-                term,
-                doc_freq,
-                postings_offset,
-                postings_len,
-            });
+            index.insert(
+                term.clone(),
+                TermInfo {
+                    term,
+                    doc_freq,
+                    postings_offset,
+                    postings_len,
+                },
+            );
         }
 
         Ok(index)
@@ -202,7 +206,7 @@ impl Segment {
     }
 
     pub fn doc_count(&self) -> u64 {
-        self.meta.doc_count - self.deleted.len() as u64
+        self.meta.doc_count - self.deleted.len()
     }
 
     pub fn term_count(&self) -> u64 {
@@ -210,7 +214,11 @@ impl Segment {
     }
 
     pub fn total_field_length(&self, field: &str) -> u64 {
-        self.meta.total_field_lengths.get(field).copied().unwrap_or(0)
+        self.meta
+            .total_field_lengths
+            .get(field)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Search for a term and return its posting list
@@ -306,7 +314,8 @@ impl Segment {
     pub fn persist_deletes(&self) -> Result<(), SegmentError> {
         let deleted_path = self.path.join("deleted.bitmap");
         let mut data = Vec::new();
-        self.deleted.serialize_into(&mut data)
+        self.deleted
+            .serialize_into(&mut data)
             .map_err(|e| SegmentError::Serialization(e.to_string()))?;
         fs::write(deleted_path, data)?;
         Ok(())
@@ -376,10 +385,7 @@ impl SegmentBuilder {
             let compressed = delta_encode(&posting.doc_ids);
             postings_file.write_all(&compressed)?;
 
-            postings_offsets.insert(
-                posting.term.clone(),
-                (offset, compressed.len() as u64),
-            );
+            postings_offsets.insert(posting.term.clone(), (offset, compressed.len() as u64));
 
             offset += compressed.len() as u64;
         }

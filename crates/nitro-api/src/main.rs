@@ -139,10 +139,12 @@ impl AppState {
     async fn check_rate_limit(&self, client_ip: &str) -> Result<(), ApiError> {
         let mut limiter = self.rate_limiter.lock().await;
         let now = std::time::Instant::now();
-        let entry = limiter.entry(client_ip.to_string()).or_insert(RateLimitEntry {
-            count: 0,
-            last_reset: now,
-        });
+        let entry = limiter
+            .entry(client_ip.to_string())
+            .or_insert(RateLimitEntry {
+                count: 0,
+                last_reset: now,
+            });
 
         // Reset counter every minute
         if now.duration_since(entry.last_reset).as_secs() >= 60 {
@@ -161,9 +163,7 @@ impl AppState {
 
     async fn validate_api_key(&self, api_key: &str) -> Result<String, ApiError> {
         let keys = self.api_keys.lock().await;
-        keys.get(api_key)
-            .cloned()
-            .ok_or(ApiError::Unauthorized)
+        keys.get(api_key).cloned().ok_or(ApiError::Unauthorized)
     }
 }
 
@@ -211,11 +211,20 @@ enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match &self {
-            ApiError::CollectionNotFound(name) => (StatusCode::NOT_FOUND, format!("Collection '{}' not found", name)),
-            ApiError::DocumentNotFound(id) => (StatusCode::NOT_FOUND, format!("Document '{}' not found", id)),
+            ApiError::CollectionNotFound(name) => (
+                StatusCode::NOT_FOUND,
+                format!("Collection '{}' not found", name),
+            ),
+            ApiError::DocumentNotFound(id) => (
+                StatusCode::NOT_FOUND,
+                format!("Document '{}' not found", id),
+            ),
             ApiError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "Invalid API key".to_string()),
-            ApiError::RateLimitExceeded => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded".to_string()),
+            ApiError::RateLimitExceeded => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "Rate limit exceeded".to_string(),
+            ),
         };
 
         let body = Json(ApiResponse::<()>::error(&msg));
@@ -278,7 +287,11 @@ fn json_to_field_value(val: &serde_json::Value) -> FieldValue {
     }
 }
 
-async fn retry_with_backoff<F, Fut, T>(mut operation: F, max_retries: u32, initial_delay_ms: u64) -> anyhow::Result<T>
+async fn retry_with_backoff<F, Fut, T>(
+    mut operation: F,
+    max_retries: u32,
+    initial_delay_ms: u64,
+) -> anyhow::Result<T>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = anyhow::Result<T>>,
@@ -291,7 +304,12 @@ where
                 if attempt == max_retries {
                     return Err(e);
                 }
-                eprintln!("Attempt {} failed: {}. Retrying in {}ms...", attempt, e, delay.as_millis());
+                eprintln!(
+                    "Attempt {} failed: {}. Retrying in {}ms...",
+                    attempt,
+                    e,
+                    delay.as_millis()
+                );
                 tokio::time::sleep(delay).await;
                 delay = std::cmp::min(delay * 2, Duration::from_secs(10));
             }
@@ -306,8 +324,13 @@ async fn create_collection_api(
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     let schema = req.schema.unwrap_or_else(Schema::default);
     let collection = Collection::new(&req.name, schema);
-    state.engine.create_collection(&req.name, collection.clone());
-    state.persistence.save_collection(&req.name, &collection).map_err(|e| ApiError::Internal(e.to_string()))?;
+    state
+        .engine
+        .create_collection(&req.name, collection.clone());
+    state
+        .persistence
+        .save_collection(&req.name, &collection)
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
     Ok(Json(ApiResponse::success(())))
 }
 
@@ -324,7 +347,10 @@ async fn insert_document_api(
         doc.set(k, json_to_field_value(v));
     }
     state.engine.insert_document(&collection_name, doc.clone());
-    state.persistence.save_document(&collection_name, &doc).map_err(|e| ApiError::Internal(e.to_string()))?;
+    state
+        .persistence
+        .save_document(&collection_name, &doc)
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
     state.cache.invalidate_all();
     Ok(Json(ApiResponse::success(())))
 }
@@ -345,7 +371,11 @@ async fn bulk_insert_api(
             doc.set(k, json_to_field_value(v));
         }
         state.engine.insert_document(&collection_name, doc.clone());
-        if state.persistence.save_document(&collection_name, &doc).is_err() {
+        if state
+            .persistence
+            .save_document(&collection_name, &doc)
+            .is_err()
+        {
             error_count += 1;
         } else {
             success_count += 1;
@@ -366,7 +396,10 @@ async fn delete_document_api(
         return Err(ApiError::CollectionNotFound(collection_name));
     }
     state.engine.delete_document(&collection_name, &doc_id);
-    state.persistence.delete_document(&collection_name, &doc_id).map_err(|e| ApiError::Internal(e.to_string()))?;
+    state
+        .persistence
+        .delete_document(&collection_name, &doc_id)
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
     state.cache.invalidate_all();
     Ok(Json(ApiResponse::success(())))
 }
@@ -390,7 +423,11 @@ async fn bulk_delete_api(
 
     for doc_id in req.ids {
         state.engine.delete_document(&collection_name, &doc_id);
-        if state.persistence.delete_document(&collection_name, &doc_id).is_err() {
+        if state
+            .persistence
+            .delete_document(&collection_name, &doc_id)
+            .is_err()
+        {
             error_count += 1;
         } else {
             success_count += 1;
@@ -415,7 +452,10 @@ async fn delete_collection_api(
     }
 
     state.engine.delete_collection(&collection_name);
-    state.persistence.delete_collection(&collection_name).map_err(|e| ApiError::Internal(e.to_string()))?;
+    state
+        .persistence
+        .delete_collection(&collection_name)
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
     state.cache.invalidate_all();
 
     Ok(Json(ApiResponse::success(())))
@@ -430,10 +470,18 @@ async fn search_api(
         return Err(ApiError::CollectionNotFound(collection_name));
     }
 
-    let cache_key = format!("{}:{}:{}:{}:{}", collection_name, params.q.clone().unwrap_or_default(), params.limit.unwrap_or(10), params.offset.unwrap_or(0), params.sort.clone().unwrap_or_default());
+    let cache_key = format!(
+        "{}:{}:{}:{}:{}",
+        collection_name,
+        params.q.clone().unwrap_or_default(),
+        params.limit.unwrap_or(10),
+        params.offset.unwrap_or(0),
+        params.sort.clone().unwrap_or_default()
+    );
 
     if let Some(cached) = state.cache.get(&cache_key).await {
-        let response: SearchResponse = serde_json::from_str(&cached).map_err(|e| ApiError::Internal(e.to_string()))?;
+        let response: SearchResponse =
+            serde_json::from_str(&cached).map_err(|e| ApiError::Internal(e.to_string()))?;
         return Ok(Json(ApiResponse::success(response)));
     }
 
@@ -456,13 +504,25 @@ async fn search_api(
             let b_val = b.doc.get(&field);
             match (a_val, b_val) {
                 (Some(FieldValue::Number(a)), Some(FieldValue::Number(b))) => {
-                    if order == "desc" { b.cmp(a) } else { a.cmp(b) }
+                    if order == "desc" {
+                        b.cmp(a)
+                    } else {
+                        a.cmp(b)
+                    }
                 }
                 (Some(FieldValue::Float(a)), Some(FieldValue::Float(b))) => {
-                    if order == "desc" { b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal) } else { a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal) }
+                    if order == "desc" {
+                        b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal)
+                    } else {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    }
                 }
                 (Some(FieldValue::Text(a)), Some(FieldValue::Text(b))) => {
-                    if order == "desc" { b.cmp(a) } else { a.cmp(b) }
+                    if order == "desc" {
+                        b.cmp(a)
+                    } else {
+                        a.cmp(b)
+                    }
                 }
                 _ => std::cmp::Ordering::Equal,
             }
@@ -490,7 +550,11 @@ async fn search_api(
         (offset, (offset + limit).min(hits.len()))
     };
 
-    let hits: Vec<_> = hits.into_iter().skip(start_idx).take(end_idx - start_idx).collect();
+    let hits: Vec<_> = hits
+        .into_iter()
+        .skip(start_idx)
+        .take(end_idx - start_idx)
+        .collect();
     let next_cursor = if end_idx < total {
         hits.last().map(|h| h.doc.id.clone())
     } else {
@@ -525,7 +589,11 @@ async fn search_api(
         hits,
         total,
         time_ms,
-        facets: if facets.is_empty() { None } else { Some(facets) },
+        facets: if facets.is_empty() {
+            None
+        } else {
+            Some(facets)
+        },
         next_cursor,
     };
 
@@ -536,7 +604,9 @@ async fn search_api(
     Ok(Json(ApiResponse::success(response)))
 }
 
-async fn list_collections_api(State(state): State<Arc<AppState>>) -> Json<ApiResponse<Vec<String>>> {
+async fn list_collections_api(
+    State(state): State<Arc<AppState>>,
+) -> Json<ApiResponse<Vec<String>>> {
     Json(ApiResponse::success(state.engine.list_collections()))
 }
 
@@ -569,17 +639,28 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Start { data_dir, bind } => {
             tracing_subscriber::fmt()
-                .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+                .with_env_filter(
+                    EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()),
+                )
                 .init();
 
             let state = Arc::new(AppState::new(&data_dir));
             let app = Router::new()
                 .route("/health", get(health_check))
                 .route("/metrics", get(metrics_handler))
-                .route("/collections", get(list_collections_api).post(create_collection_api))
-                .route("/{collection}/documents", post(insert_document_api).put(bulk_insert_api))
+                .route(
+                    "/collections",
+                    get(list_collections_api).post(create_collection_api),
+                )
+                .route(
+                    "/{collection}/documents",
+                    post(insert_document_api).put(bulk_insert_api),
+                )
                 .route("/{collection}/documents/_bulk", delete(bulk_delete_api))
-                .route("/{collection}/documents/{id}", get(get_document_api).delete(delete_document_api))
+                .route(
+                    "/{collection}/documents/{id}",
+                    get(get_document_api).delete(delete_document_api),
+                )
                 .route("/{collection}", delete(delete_collection_api))
                 .route("/{collection}/search", get(search_api))
                 .with_state(state);
@@ -590,14 +671,26 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Commands::Create { name } => {
-            let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?;
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()?;
             let result = retry_with_backoff(
                 || async {
-                    let res = client.post(&format!("{}/collections", cli.url))
+                    let res = client
+                        .post(&format!("{}/collections", cli.url))
                         .json(&serde_json::json!({"name": name, "schema": {"fields": []}}))
-                        .send().await?;
-                    if res.status().is_success() { Ok(()) } else { Err(anyhow::anyhow!("Failed: {}", res.status())) }
-                }, 3, 500).await;
+                        .send()
+                        .await?;
+                    if res.status().is_success() {
+                        Ok(())
+                    } else {
+                        Err(anyhow::anyhow!("Failed: {}", res.status()))
+                    }
+                },
+                3,
+                500,
+            )
+            .await;
             match result {
                 Ok(_) => println!("✓ Collection '{}' created", name),
                 Err(e) => println!("✗ {}", e),
@@ -607,34 +700,77 @@ async fn main() -> anyhow::Result<()> {
         Commands::Index { file, collection } => {
             let content = std::fs::read_to_string(&file)?;
             let documents: Vec<serde_json::Value> = serde_json::from_str(&content)?;
-            let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?;
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()?;
             let mut success = 0;
             let mut errors = 0;
 
             for (i, doc) in documents.into_iter().enumerate() {
                 let result = retry_with_backoff(
                     || async {
-                        let res = client.post(&format!("{}/{}/documents", cli.url, collection)).json(&doc).send().await?;
-                        if res.status().is_success() { Ok(()) } else { Err(anyhow::anyhow!("Failed doc {}: {}", i + 1, res.status())) }
-                    }, 3, 500).await;
-                match result { Ok(_) => success += 1, Err(e) => { errors += 1; eprintln!("✗ {}", e); } }
+                        let res = client
+                            .post(&format!("{}/{}/documents", cli.url, collection))
+                            .json(&doc)
+                            .send()
+                            .await?;
+                        if res.status().is_success() {
+                            Ok(())
+                        } else {
+                            Err(anyhow::anyhow!("Failed doc {}: {}", i + 1, res.status()))
+                        }
+                    },
+                    3,
+                    500,
+                )
+                .await;
+                match result {
+                    Ok(_) => success += 1,
+                    Err(e) => {
+                        errors += 1;
+                        eprintln!("✗ {}", e);
+                    }
+                }
             }
             println!("✓ Indexed {} documents ({} errors)", success, errors);
         }
 
-        Commands::Search { query, collection, limit, offset, sort } => {
-            let client = reqwest::Client::builder().timeout(Duration::from_secs(30)).build()?;
+        Commands::Search {
+            query,
+            collection,
+            limit,
+            offset,
+            sort,
+        } => {
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()?;
             let url = format!("{}/{}/search", cli.url, collection);
             let mut params = vec![("limit", limit.to_string()), ("offset", offset.to_string())];
-            if !query.is_empty() { params.push(("q", query)); }
-            if let Some(s) = sort { params.push(("sort", s)); }
+            if !query.is_empty() {
+                params.push(("q", query));
+            }
+            if let Some(s) = sort {
+                params.push(("sort", s));
+            }
 
             let result = retry_with_backoff(
                 || async {
                     let res = client.get(&url).query(&params).send().await?;
-                    if res.status().is_success() { Ok(res.text().await?) } else { Err(anyhow::anyhow!("Search failed: {}", res.status())) }
-                }, 3, 500).await;
-            match result { Ok(body) => println!("{}", body), Err(e) => println!("✗ {}", e) }
+                    if res.status().is_success() {
+                        Ok(res.text().await?)
+                    } else {
+                        Err(anyhow::anyhow!("Search failed: {}", res.status()))
+                    }
+                },
+                3,
+                500,
+            )
+            .await;
+            match result {
+                Ok(body) => println!("{}", body),
+                Err(e) => println!("✗ {}", e),
+            }
         }
 
         Commands::SnapshotCreate { name } => {

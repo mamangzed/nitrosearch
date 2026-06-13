@@ -43,7 +43,7 @@ impl BM25Scorer {
     pub fn add_field_length(&mut self, doc_id: &str, field: &str, length: usize) {
         self.field_lengths
             .entry(doc_id.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(field.to_string(), length);
     }
 
@@ -51,9 +51,9 @@ impl BM25Scorer {
     pub fn add_field_term_freq(&mut self, doc_id: &str, field: &str, term: &str, freq: usize) {
         self.field_term_freq
             .entry(doc_id.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .entry(field.to_string())
-            .or_insert_with(HashMap::new)
+            .or_default()
             .insert(term.to_string(), freq);
     }
 
@@ -82,10 +82,12 @@ impl BM25Scorer {
     pub fn score_with_fields(&self, term: &str, doc_id: &str) -> f64 {
         if self.field_weights.is_empty() {
             // Fall back to non-field scoring
-            let total_freq = self.field_term_freq
+            let total_freq = self
+                .field_term_freq
                 .get(doc_id)
                 .map(|fields| {
-                    fields.values()
+                    fields
+                        .values()
                         .filter_map(|terms| terms.get(term))
                         .sum::<usize>()
                 })
@@ -99,7 +101,8 @@ impl BM25Scorer {
         if let Some(field_data) = self.field_term_freq.get(doc_id) {
             for (field, term_freqs) in field_data {
                 if let Some(&freq) = term_freqs.get(term) {
-                    let field_len = self.field_lengths
+                    let field_len = self
+                        .field_lengths
                         .get(doc_id)
                         .and_then(|fields| fields.get(field))
                         .copied()
@@ -116,14 +119,19 @@ impl BM25Scorer {
     }
 
     fn idf(&self, term: &str) -> f64 {
-        let df = self.term_doc_freq.iter().filter(|(k, _)| k.starts_with(&format!("{}:", term))).count() as f64;
+        let df = self
+            .term_doc_freq
+            .iter()
+            .filter(|(k, _)| k.starts_with(&format!("{}:", term)))
+            .count() as f64;
         let n = self.doc_count as f64;
         ((n - df + 0.5) / (df + 0.5) + 1.0).ln()
     }
 
     fn tf(&self, term_freq: usize, doc_len: f64) -> f64 {
         let numerator = (term_freq as f64) * (self.k1 + 1.0);
-        let denominator = term_freq as f64 + self.k1 * (1.0 - self.b + self.b * (doc_len / self.avg_doc_len));
+        let denominator =
+            term_freq as f64 + self.k1 * (1.0 - self.b + self.b * (doc_len / self.avg_doc_len));
         numerator / denominator
     }
 }

@@ -80,7 +80,10 @@ impl SearchEngine {
                 // Add to buffer (will be flushed to segment)
                 let mut buffer = manager.buffer().write().unwrap();
                 buffer.insert(doc.id.clone(), (doc.clone(), tokens));
-                debug!("Buffered document {} into collection {}", doc.id, collection);
+                debug!(
+                    "Buffered document {} into collection {}",
+                    doc.id, collection
+                );
             }
         }
     }
@@ -106,12 +109,24 @@ impl SearchEngine {
 
         let manager = match segment_managers.get(collection) {
             Some(m) => m,
-            None => return SearchResults { total: 0, hits: Vec::new(), time_ms: 0 },
+            None => {
+                return SearchResults {
+                    total: 0,
+                    hits: Vec::new(),
+                    time_ms: 0,
+                }
+            }
         };
 
         let tokenizer = match tokenizers.get(collection) {
             Some(t) => t,
-            None => return SearchResults { total: 0, hits: Vec::new(), time_ms: 0 },
+            None => {
+                return SearchResults {
+                    total: 0,
+                    hits: Vec::new(),
+                    time_ms: 0,
+                }
+            }
         };
 
         let weights = field_weights.get(collection).cloned().unwrap_or_default();
@@ -129,7 +144,8 @@ impl SearchEngine {
         let segments = manager.segments();
 
         // Execute parallel search
-        self.executor.execute_parallel(&query, &segments, tokenizer, &scorer, limit)
+        self.executor
+            .execute_parallel(&query, &segments, tokenizer, &scorer, limit)
     }
 
     pub fn get_collection(&self, name: &str) -> Option<Collection> {

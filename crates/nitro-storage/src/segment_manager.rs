@@ -63,6 +63,7 @@ pub struct SegmentManager {
     segments: RwLock<Vec<Arc<Segment>>>,
 
     /// WAL for crash recovery
+    #[allow(dead_code)]
     wal: RwLock<WalWriter>,
 
     /// Merge policy configuration
@@ -99,7 +100,8 @@ impl SegmentManager {
         fs::create_dir_all(&data_dir)?;
 
         let wal_path = data_dir.join("wal.log");
-        let wal = WalWriter::open(&wal_path).map_err(|e| SegmentManagerError::MergeError(e.to_string()))?;
+        let wal = WalWriter::open(&wal_path)
+            .map_err(|e| SegmentManagerError::MergeError(e.to_string()))?;
 
         let (shutdown_tx, _) = broadcast::channel(16);
 
@@ -133,7 +135,14 @@ impl SegmentManager {
             let entry = entry?;
             let path = entry.path();
 
-            if path.is_dir() && path.file_name().unwrap().to_str().unwrap().starts_with("segment_") {
+            if path.is_dir()
+                && path
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .starts_with("segment_")
+            {
                 match Segment::open(path.clone()) {
                     Ok(segment) => {
                         let segment_id = segment.id();
@@ -166,10 +175,7 @@ impl SegmentManager {
 
     /// Get total document count across all segments
     pub fn total_doc_count(&self) -> u64 {
-        self.segments()
-            .iter()
-            .map(|s| s.doc_count())
-            .sum()
+        self.segments().iter().map(|s| s.doc_count()).sum()
     }
 
     /// Add a new segment
@@ -199,13 +205,17 @@ impl SegmentManager {
         let segment_count = segments.len();
 
         if segment_count >= self.merge_policy.max_merge_segments {
-            warn!("Segment count {} exceeded max {}, forcing merge",
-                  segment_count, self.merge_policy.max_merge_segments);
+            warn!(
+                "Segment count {} exceeded max {}, forcing merge",
+                segment_count, self.merge_policy.max_merge_segments
+            );
             drop(segments);
             self.trigger_merge()?;
         } else if segment_count >= self.merge_policy.min_merge_segments {
-            debug!("Segment count {} reached threshold {}, scheduling merge",
-                   segment_count, self.merge_policy.min_merge_segments);
+            debug!(
+                "Segment count {} reached threshold {}, scheduling merge",
+                segment_count, self.merge_policy.min_merge_segments
+            );
             drop(segments);
             self.trigger_merge()?;
         }
@@ -279,12 +289,13 @@ impl SegmentManager {
             let terms = segment.all_terms();
 
             for term in terms {
-                let postings = segment.search_term(&term)?
+                let postings = segment
+                    .search_term(&term)?
                     .ok_or_else(|| SegmentError::NotFound(format!("Term not found: {}", term)))?;
 
                 all_terms
                     .entry(term)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .extend(postings);
             }
 
@@ -324,8 +335,11 @@ impl SegmentManager {
         }
 
         let segment = builder.build()?;
-        info!("Created merged segment {} with {} docs",
-              new_id, segment.doc_count());
+        info!(
+            "Created merged segment {} with {} docs",
+            new_id,
+            segment.doc_count()
+        );
 
         Ok(segment)
     }
@@ -385,7 +399,8 @@ impl SegmentManager {
         let _memory_limit = self.memory_limit_bytes;
 
         let task = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(flush_interval));
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_secs(flush_interval));
             let mut shutdown_rx = shutdown_rx;
 
             loop {
@@ -434,7 +449,10 @@ impl SegmentManager {
     }
 
     /// Batch insert multiple documents efficiently
-    pub fn batch_insert(&self, docs: Vec<(Document, Vec<String>)>) -> Result<(), SegmentManagerError> {
+    pub fn batch_insert(
+        &self,
+        docs: Vec<(Document, Vec<String>)>,
+    ) -> Result<(), SegmentManagerError> {
         if docs.is_empty() {
             return Ok(());
         }
@@ -454,7 +472,10 @@ impl SegmentManager {
 
         // Check if we should trigger a flush
         if buffer_size >= self.flush_threshold {
-            info!("Buffer reached threshold ({} docs), triggering flush", buffer_size);
+            info!(
+                "Buffer reached threshold ({} docs), triggering flush",
+                buffer_size
+            );
             drop(buffer); // Release lock before flush
             self.flush_buffer()?;
         }
@@ -473,13 +494,18 @@ impl SegmentManager {
         let segment_id = self.next_segment_id();
         let segment_path = self.data_dir.join(format!("segment_{}", segment_id));
 
-        info!("Flushing {} documents to segment {}", buffer.len(), segment_id);
+        info!(
+            "Flushing {} documents to segment {}",
+            buffer.len(),
+            segment_id
+        );
 
         // Build segment from buffer
         let mut builder = crate::segment::SegmentBuilder::new(segment_id, segment_path);
 
         // Collect all documents and build inverted index
-        let mut term_postings: std::collections::HashMap<String, Vec<u32>> = std::collections::HashMap::new();
+        let mut term_postings: std::collections::HashMap<String, Vec<u32>> =
+            std::collections::HashMap::new();
 
         for (doc_id, (doc, tokens)) in buffer.drain() {
             let doc_num: u32 = doc_id.parse().unwrap_or(0);
@@ -492,7 +518,7 @@ impl SegmentManager {
             for token in tokens {
                 term_postings
                     .entry(token)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(doc_num);
             }
         }
@@ -542,10 +568,8 @@ mod tests {
     #[tokio::test]
     async fn test_segment_manager_basic() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = SegmentManager::new(
-            temp_dir.path().to_path_buf(),
-            MergePolicy::default(),
-        ).unwrap();
+        let manager =
+            SegmentManager::new(temp_dir.path().to_path_buf(), MergePolicy::default()).unwrap();
 
         assert_eq!(manager.segments().len(), 0);
         assert_eq!(manager.total_doc_count(), 0);
@@ -560,7 +584,8 @@ mod tests {
                 min_merge_segments: 100, // High threshold to avoid auto-merge
                 ..Default::default()
             },
-        ).unwrap();
+        )
+        .unwrap();
 
         // Create a test segment
         let segment_path = temp_dir.path().join("segment_1");

@@ -15,7 +15,11 @@ pub enum MmapError {
     #[error("Memory map error: {0}")]
     Map(String),
     #[error("Out of bounds: offset={offset}, len={len}, size={size}")]
-    OutOfBounds { offset: usize, len: usize, size: usize },
+    OutOfBounds {
+        offset: usize,
+        len: usize,
+        size: usize,
+    },
 }
 
 /// Safe memory-mapped file reader
@@ -72,8 +76,7 @@ impl MmapReader {
     pub fn read_u64(&self, offset: usize) -> Result<u64, MmapError> {
         let bytes = self.read_bytes(offset, 8)?;
         Ok(u64::from_le_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3],
-            bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
         ]))
     }
 
@@ -84,7 +87,9 @@ impl MmapReader {
 
     /// Advise the OS about access patterns
     pub fn advise(&self, advice: memmap2::Advice) -> Result<(), MmapError> {
-        self.mmap.advise(advice).map_err(|e| MmapError::Map(e.to_string()))
+        self.mmap
+            .advise(advice)
+            .map_err(|e| MmapError::Map(e.to_string()))
     }
 }
 

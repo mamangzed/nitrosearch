@@ -12,7 +12,10 @@ impl QueryParser {
         // Check for phrase query: "rust engine"
         if query_str.starts_with('"') && query_str.ends_with('"') && query_str.len() > 2 {
             let phrase = &query_str[1..query_str.len() - 1];
-            let terms: Vec<String> = phrase.split_whitespace().map(|s| s.to_lowercase()).collect();
+            let terms: Vec<String> = phrase
+                .split_whitespace()
+                .map(|s| s.to_lowercase())
+                .collect();
             return Query::Phrase {
                 field: "_all".to_string(),
                 terms,
@@ -100,19 +103,39 @@ mod tests {
     #[test]
     fn test_parse_term() {
         let q = QueryParser::parse("rust");
-        assert_eq!(q, Query::Term { field: "_all".to_string(), term: "rust".to_string(), boost: None });
+        assert_eq!(
+            q,
+            Query::Term {
+                field: "_all".to_string(),
+                term: "rust".to_string(),
+                boost: None
+            }
+        );
     }
 
     #[test]
     fn test_parse_phrase() {
         let q = QueryParser::parse("\"rust engine\"");
-        assert_eq!(q, Query::Phrase { field: "_all".to_string(), terms: vec!["rust".to_string(), "engine".to_string()] });
+        assert_eq!(
+            q,
+            Query::Phrase {
+                field: "_all".to_string(),
+                terms: vec!["rust".to_string(), "engine".to_string()]
+            }
+        );
     }
 
     #[test]
     fn test_parse_fuzzy() {
         let q = QueryParser::parse("rust~1");
-        assert_eq!(q, Query::Fuzzy { field: "_all".to_string(), term: "rust".to_string(), distance: 1 });
+        assert_eq!(
+            q,
+            Query::Fuzzy {
+                field: "_all".to_string(),
+                term: "rust".to_string(),
+                distance: 1
+            }
+        );
     }
 
     #[test]
@@ -120,8 +143,22 @@ mod tests {
         let q = QueryParser::parse("rust AND engine");
         match q {
             Query::And { left, right } => {
-                assert_eq!(*left, Query::Term { field: "_all".to_string(), term: "rust".to_string(), boost: None });
-                assert_eq!(*right, Query::Term { field: "_all".to_string(), term: "engine".to_string(), boost: None });
+                assert_eq!(
+                    *left,
+                    Query::Term {
+                        field: "_all".to_string(),
+                        term: "rust".to_string(),
+                        boost: None
+                    }
+                );
+                assert_eq!(
+                    *right,
+                    Query::Term {
+                        field: "_all".to_string(),
+                        term: "engine".to_string(),
+                        boost: None
+                    }
+                );
             }
             _ => panic!("Expected And"),
         }
@@ -130,6 +167,13 @@ mod tests {
     #[test]
     fn test_parse_field() {
         let q = QueryParser::parse("title:rust");
-        assert_eq!(q, Query::Term { field: "title".to_string(), term: "rust".to_string(), boost: None });
+        assert_eq!(
+            q,
+            Query::Term {
+                field: "title".to_string(),
+                term: "rust".to_string(),
+                boost: None
+            }
+        );
     }
 }
