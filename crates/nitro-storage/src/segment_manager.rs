@@ -293,10 +293,7 @@ impl SegmentManager {
                     .search_term(&term)?
                     .ok_or_else(|| SegmentError::NotFound(format!("Term not found: {}", term)))?;
 
-                all_terms
-                    .entry(term)
-                    .or_default()
-                    .extend(postings);
+                all_terms.entry(term).or_default().extend(postings);
             }
 
             // Get all documents (excluding deleted)
@@ -516,10 +513,7 @@ impl SegmentManager {
 
             // Build postings for each term
             for token in tokens {
-                term_postings
-                    .entry(token)
-                    .or_default()
-                    .push(doc_num);
+                term_postings.entry(token).or_default().push(doc_num);
             }
         }
 
