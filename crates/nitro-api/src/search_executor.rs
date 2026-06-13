@@ -104,6 +104,7 @@ impl SearchExecutor {
         }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn execute_query_on_segment(
         query: &Query,
         segment: &Segment,

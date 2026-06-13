@@ -57,6 +57,7 @@ impl SearchEngine {
         info!("Created collection: {}", name);
     }
 
+    #[allow(dead_code)]
     pub fn set_field_weights(&self, collection: &str, weights: HashMap<String, f64>) {
         let mut field_weights = self.field_weights.write().unwrap();
         field_weights.insert(collection.to_string(), weights);
@@ -188,6 +189,7 @@ impl SearchEngine {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_document(&self, collection: &str, doc_id: &str) -> Option<Document> {
         let segment_managers = self.segment_managers.read().unwrap();
 

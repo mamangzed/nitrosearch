@@ -499,8 +499,8 @@ async fn search_api(
     let mut hits = results.hits;
 
     if let Some(sort_field) = params.sort {
-        let (field, order) = if sort_field.starts_with('-') {
-            (sort_field[1..].to_string(), "desc")
+        let (field, order) = if let Some(stripped) = sort_field.strip_prefix('-') {
+            (stripped.to_string(), "desc")
         } else {
             (sort_field, "asc")
         };
@@ -682,7 +682,7 @@ async fn main() -> anyhow::Result<()> {
             let result = retry_with_backoff(
                 || async {
                     let res = client
-                        .post(&format!("{}/collections", cli.url))
+                        .post(format!("{}/collections", cli.url))
                         .json(&serde_json::json!({"name": name, "schema": {"fields": []}}))
                         .send()
                         .await?;
@@ -715,7 +715,7 @@ async fn main() -> anyhow::Result<()> {
                 let result = retry_with_backoff(
                     || async {
                         let res = client
-                            .post(&format!("{}/{}/documents", cli.url, collection))
+                            .post(format!("{}/{}/documents", cli.url, collection))
                             .json(&doc)
                             .send()
                             .await?;

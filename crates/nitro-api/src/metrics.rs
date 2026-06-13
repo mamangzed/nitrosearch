@@ -9,6 +9,7 @@ pub struct Metrics {
     pub avg_search_latency_ms: AtomicU64,
 }
 
+#[allow(dead_code)]
 impl Metrics {
     pub fn inc_requests(&self) {
         self.requests_total.fetch_add(1, Ordering::Relaxed);
