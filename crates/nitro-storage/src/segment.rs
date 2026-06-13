@@ -10,6 +10,8 @@
 
 use crate::compression::{delta_decode, delta_encode};
 use crate::mmap::MmapReader;
+#[cfg(unix)]
+#[cfg(unix)]
 use memmap2::Advice;
 use roaring::RoaringBitmap;
 use std::collections::HashMap;
@@ -131,15 +133,18 @@ impl Segment {
             HashMap::new()
         };
 
-        // Advise OS about access pattern
-        if let Some(ref mmap) = terms_mmap {
-            mmap.advise(Advice::Random)?;
-        }
-        if let Some(ref mmap) = postings_mmap {
-            mmap.advise(Advice::Sequential)?;
-        }
-        if let Some(ref mmap) = stored_mmap {
-            mmap.advise(Advice::Random)?;
+        // Advise OS about access pattern (Unix only)
+        #[cfg(unix)]
+        {
+            if let Some(ref mmap) = terms_mmap {
+                mmap.advise(Advice::Random)?;
+            }
+            if let Some(ref mmap) = postings_mmap {
+                mmap.advise(Advice::Sequential)?;
+            }
+            if let Some(ref mmap) = stored_mmap {
+                mmap.advise(Advice::Random)?;
+            }
         }
 
         Ok(Self {

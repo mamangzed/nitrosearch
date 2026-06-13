@@ -85,7 +85,8 @@ impl MmapReader {
         &self.file
     }
 
-    /// Advise the OS about access patterns
+    /// Advise the OS about access patterns (Unix only)
+    #[cfg(unix)]
     pub fn advise(&self, advice: memmap2::Advice) -> Result<(), MmapError> {
         self.mmap
             .advise(advice)

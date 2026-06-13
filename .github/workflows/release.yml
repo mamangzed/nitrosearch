@@ -66,21 +66,15 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: nitro-linux-x86_64
-          - target: x86_64-unknown-linux-musl
-            os: ubuntu-latest
-            name: nitro-linux-x86_64-static
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: nitro-linux-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: nitro-windows-x86_64.exe
           - target: x86_64-apple-darwin
             os: macos-latest
             name: nitro-darwin-x86_64
           - target: aarch64-apple-darwin
             os: macos-latest
             name: nitro-darwin-aarch64
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: nitro-windows-x86_64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -89,19 +83,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Install musl tools (Linux static)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
-      - name: Install cross-compilation tools (aarch64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -117,8 +98,6 @@ jobs:
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          RUSTFLAGS: "-C opt-level=3 -C lto=fat"
 
       - name: Prepare binary (Unix)
         if: matrix.os != 'windows-latest'
@@ -131,10 +110,11 @@ jobs:
 
       - name: Prepare binary (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          cp target/${{ matrix.target }}/release/nitro.exe ${{ matrix.name }}
-          Compress-Archive -Path ${{ matrix.name }} -DestinationPath ${{ matrix.name }}.zip
-          Get-FileHash -Algorithm SHA256 ${{ matrix.name }}.zip > ${{ matrix.name }}.zip.sha256
+          Copy-Item "target/${{ matrix.target }}/release/nitro.exe" "${{ matrix.name }}"
+          Compress-Archive -Path "${{ matrix.name }}" -DestinationPath "${{ matrix.name }}.zip"
+          Get-FileHash -Algorithm SHA256 "${{ matrix.name }}.zip" > "${{ matrix.name }}.zip.sha256"
 
       - name: Upload artifacts (Unix)
         if: matrix.os != 'windows-latest'
