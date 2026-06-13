@@ -83,12 +83,28 @@ impl SearchExecutor {
             // Try to find document in any segment
             for segment in segments {
                 if let Ok(doc_id_num) = doc_id.parse::<u32>() {
-                    if let Ok(Some(doc_bytes)) = segment.get_document(doc_id_num) {
-                        if let Ok(doc) = bincode::deserialize::<Document>(&doc_bytes) {
-                            doc_lookup.insert(doc_id.clone(), doc);
-                            break;
+                    match segment.get_document(doc_id_num) {
+                        Ok(Some(doc_bytes)) => match bincode::deserialize::<Document>(&doc_bytes) {
+                            Ok(doc) => {
+                                doc_lookup.insert(doc_id.clone(), doc);
+                                break;
+                            }
+                            Err(e) => {
+                                tracing::warn!("Failed to deserialize doc {}: {}", doc_id, e);
+                            }
+                        },
+                        Ok(None) => {
+                            tracing::warn!(
+                                "Document {} not found in segment (may be in buffer)",
+                                doc_id
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!("Error reading doc {}: {}", doc_id, e);
                         }
                     }
+                } else {
+                    tracing::warn!("Invalid doc_id format: {}", doc_id);
                 }
             }
         }
