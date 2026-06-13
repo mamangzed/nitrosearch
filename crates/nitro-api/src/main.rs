@@ -661,7 +661,10 @@ async fn main() -> anyhow::Result<()> {
                     "/{collection}/documents",
                     post(insert_document_api).put(bulk_insert_api),
                 )
-                .route("/{collection}/documents/_bulk", delete(bulk_delete_api))
+                .route(
+                    "/{collection}/documents/_bulk",
+                    post(bulk_insert_api).put(bulk_insert_api).delete(bulk_delete_api),
+                )
                 .route(
                     "/{collection}/documents/{id}",
                     get(get_document_api).delete(delete_document_api),
