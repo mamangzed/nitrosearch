@@ -1,0 +1,46 @@
+# Build artifacts
+/target/
+**/target/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+**/*.rs.bk
+
+# Dependency directories
+/Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+/data/
+/test-data/
+/snapshots/
+*.log
+
+# Documentation files (not for repo)
+AGENTS.md
+SPECS.md
+specs.md
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

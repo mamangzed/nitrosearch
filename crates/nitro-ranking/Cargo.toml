@@ -1,0 +1,9 @@
+[package]
+name = "nitro-ranking"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nitro-core = { path = "../nitro-core" }
+serde = { workspace = true }
+chrono = { workspace = true }

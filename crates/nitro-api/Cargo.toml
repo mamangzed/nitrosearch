@@ -1,0 +1,30 @@
+[package]
+name = "nitro-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nitro-core = { path = "../nitro-core" }
+nitro-storage = { path = "../nitro-storage" }
+nitro-index = { path = "../nitro-index" }
+nitro-query = { path = "../nitro-query" }
+nitro-ranking = { path = "../nitro-ranking" }
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+moka = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tower-http = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+anyhow = { workspace = true }
+rayon = "1.8"
+
+[[bin]]
+name = "nitro"
+path = "src/main.rs"

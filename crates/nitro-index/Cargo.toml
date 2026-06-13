@@ -1,0 +1,11 @@
+[package]
+name = "nitro-index"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nitro-core = { path = "../nitro-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+roaring = { workspace = true }
+thiserror = { workspace = true }

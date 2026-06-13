@@ -1,0 +1,273 @@
+name: Release Build
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --verbose
+
+  build:
+    name: Build Release - ${{ matrix.target }}
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: nitro-linux-x86_64
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: nitro-linux-x86_64-static
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: nitro-linux-aarch64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: nitro-darwin-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: nitro-darwin-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: nitro-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl tools (Linux static)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Install cross-compilation tools (aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: "-C opt-level=3 -C lto=fat"
+
+      - name: Prepare binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/nitro ${{ matrix.name }}
+          strip ${{ matrix.name }} || true
+          chmod +x ${{ matrix.name }}
+          tar czf ${{ matrix.name }}.tar.gz ${{ matrix.name }}
+          sha256sum ${{ matrix.name }}.tar.gz > ${{ matrix.name }}.tar.gz.sha256
+
+      - name: Prepare binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/nitro.exe ${{ matrix.name }}
+          Compress-Archive -Path ${{ matrix.name }} -DestinationPath ${{ matrix.name }}.zip
+          Get-FileHash -Algorithm SHA256 ${{ matrix.name }}.zip > ${{ matrix.name }}.zip.sha256
+
+      - name: Upload artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}.tar.gz
+            ${{ matrix.name }}.tar.gz.sha256
+
+      - name: Upload artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}.zip
+            ${{ matrix.name }}.zip.sha256
+
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find . -name "*.tar.gz" -o -name "*.zip" -o -name "*.sha256" | grep -v release-assets | xargs -I {} mv {} release-assets/
+          ls -lah release-assets/
+
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: NitroSearch ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## 🚀 NitroSearch ${{ steps.get_version.outputs.VERSION }}
+
+            ### What's New
+            - High-performance full-text search engine
+            - Built with Rust for speed and safety
+            - BM25 ranking algorithm
+            - Fuzzy search with Levenshtein distance
+            - Query operators (AND, OR, NOT, phrase search)
+            - Batch operations and cursor pagination
+            - Multi-tenancy support
+            - Prometheus metrics endpoint
+            - Snapshot backup/restore
+
+            ### Installation
+
+            #### Linux (x86_64)
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/nitro-linux-x86_64.tar.gz
+            tar xzf nitro-linux-x86_64.tar.gz
+            sudo mv nitro /usr/local/bin/
+            ```
+
+            #### macOS (Intel)
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/nitro-darwin-x86_64.tar.gz
+            tar xzf nitro-darwin-x86_64.tar.gz
+            sudo mv nitro /usr/local/bin/
+            ```
+
+            #### macOS (Apple Silicon)
+            ```bash
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/nitro-darwin-aarch64.tar.gz
+            tar xzf nitro-darwin-aarch64.tar.gz
+            sudo mv nitro /usr/local/bin/
+            ```
+
+            #### Windows
+            ```powershell
+            Invoke-WebRequest -Uri "https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.VERSION }}/nitro-windows-x86_64.exe.zip" -OutFile "nitro.zip"
+            Expand-Archive -Path "nitro.zip" -DestinationPath "."
+            ```
+
+            See [README.md](https://github.com/${{ github.repository }}#readme) for full documentation.
+
+            ### Checksums
+            SHA256 checksums are provided for all binaries (`.sha256` files).
+          files: release-assets/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-latest:
+    name: Build Latest (Non-Release)
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Prepare binary
+        run: |
+          cp target/release/nitro nitro
+          strip nitro
+          chmod +x nitro
+          tar czf nitro-latest.tar.gz nitro
+
+      - name: Upload latest build
+        uses: actions/upload-artifact@v3
+        with:
+          name: nitro-latest
+          path: nitro-latest.tar.gz
