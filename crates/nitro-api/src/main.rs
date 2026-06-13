@@ -368,28 +368,25 @@ async fn bulk_insert_api(
     if state.engine.get_collection(&collection_name).is_none() {
         return Err(ApiError::CollectionNotFound(collection_name));
     }
+
+    let total_docs = req.documents.len();
     let mut success_count = 0;
-    let mut error_count = 0;
+
+    // Hanya gunakan engine.insert_document() yang sudah ada auto-flush
     for doc_req in req.documents {
         let mut doc = Document::new(&doc_req.id);
         for (k, v) in &doc_req.fields {
             doc.set(k, json_to_field_value(v));
         }
-        state.engine.insert_document(&collection_name, doc.clone());
-        if state
-            .persistence
-            .save_document(&collection_name, &doc)
-            .is_err()
-        {
-            error_count += 1;
-        } else {
-            success_count += 1;
-        }
+        state.engine.insert_document(&collection_name, doc);
+        success_count += 1;
     }
+
     state.cache.invalidate_all();
+
     let mut result = HashMap::new();
     result.insert("success".to_string(), success_count);
-    result.insert("errors".to_string(), error_count);
+    result.insert("errors".to_string(), total_docs - success_count);
     Ok(Json(ApiResponse::success(result)))
 }
 
