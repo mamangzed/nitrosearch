@@ -72,11 +72,34 @@ impl SearchExecutor {
             }
         }
 
-        // Build results with highlights
-        let mut hits: Vec<SearchResult> = global_scores
+        // Sort by score and truncate to limit
+        let mut scored_ids: Vec<(String, f64)> = global_scores.into_iter().collect();
+        scored_ids.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored_ids.truncate(limit);
+
+        // Build lookup map: doc_id -> Document from segments
+        let mut doc_lookup: HashMap<String, Document> = HashMap::new();
+        for (doc_id, _) in &scored_ids {
+            // Try to find document in any segment
+            for segment in segments {
+                if let Ok(doc_id_num) = doc_id.parse::<u32>() {
+                    if let Ok(Some(doc_bytes)) = segment.get_document(doc_id_num) {
+                        if let Ok(doc) = bincode::deserialize::<Document>(&doc_bytes) {
+                            doc_lookup.insert(doc_id.clone(), doc);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build results with highlights and full documents
+        let hits: Vec<SearchResult> = scored_ids
             .into_iter()
             .map(|(doc_id, score)| {
-                let doc = Document::new(&doc_id);
+                let doc = doc_lookup
+                    .remove(&doc_id)
+                    .unwrap_or_else(|| Document::new(&doc_id));
                 let terms = global_terms.get(&doc_id).cloned().unwrap_or_default();
                 let highlights = self.highlighter.highlight(&doc, &terms);
 
@@ -87,12 +110,6 @@ impl SearchExecutor {
                 }
             })
             .collect();
-
-        // Sort by score descending
-        hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-
-        // Truncate to limit
-        hits.truncate(limit);
 
         let elapsed = start.elapsed().as_millis() as u64;
         METRICS.record_search_latency(elapsed);

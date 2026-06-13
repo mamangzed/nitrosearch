@@ -130,8 +130,13 @@ impl BM25Scorer {
 
     fn tf(&self, term_freq: usize, doc_len: f64) -> f64 {
         let numerator = (term_freq as f64) * (self.k1 + 1.0);
+        let avg_len = if self.avg_doc_len > 0.0 {
+            self.avg_doc_len
+        } else {
+            1.0
+        };
         let denominator =
-            term_freq as f64 + self.k1 * (1.0 - self.b + self.b * (doc_len / self.avg_doc_len));
+            term_freq as f64 + self.k1 * (1.0 - self.b + self.b * (doc_len / avg_len));
         numerator / denominator
     }
 }
