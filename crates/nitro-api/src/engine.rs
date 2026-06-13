@@ -88,7 +88,10 @@ impl SearchEngine {
                 let mut buffer = manager.buffer().write().unwrap();
                 let doc_id = doc.id.clone();
                 buffer.insert(doc_id.clone(), (doc.clone(), tokens));
-                debug!("Buffered document {} into collection {}", doc_id, collection);
+                debug!(
+                    "Buffered document {} into collection {}",
+                    doc_id, collection
+                );
 
                 let buffer_size = buffer.len();
                 if buffer_size >= 10_000 {
