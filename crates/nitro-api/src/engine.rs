@@ -64,12 +64,10 @@ impl SearchEngine {
     }
 
     pub fn insert_document(&self, collection: &str, doc: Document) {
-        let segment_managers = self.segment_managers.read().unwrap();
-        let tokenizers = self.tokenizers.read().unwrap();
-
-        if let Some(manager) = segment_managers.get(collection) {
+        // Tokenize document first
+        let tokens = {
+            let tokenizers = self.tokenizers.read().unwrap();
             if let Some(tokenizer) = tokenizers.get(collection) {
-                // Tokenize document
                 let mut tokens = Vec::new();
                 for value in doc.fields.values() {
                     if let Some(text) = value.as_text() {
@@ -77,14 +75,45 @@ impl SearchEngine {
                         tokens.extend(field_tokens);
                     }
                 }
+                tokens
+            } else {
+                return;
+            }
+        };
 
-                // Add to buffer (will be flushed to segment)
+        // Add to buffer and check if flush needed
+        let should_flush = {
+            let segment_managers = self.segment_managers.read().unwrap();
+            if let Some(manager) = segment_managers.get(collection) {
                 let mut buffer = manager.buffer().write().unwrap();
-                buffer.insert(doc.id.clone(), (doc.clone(), tokens));
-                debug!(
-                    "Buffered document {} into collection {}",
-                    doc.id, collection
-                );
+                let doc_id = doc.id.clone();
+                buffer.insert(doc_id.clone(), (doc.clone(), tokens));
+                debug!("Buffered document {} into collection {}", doc_id, collection);
+
+                let buffer_size = buffer.len();
+                if buffer_size >= 10_000 {
+                    info!(
+                        "Buffer size reached {} documents, triggering auto-flush",
+                        buffer_size
+                    );
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        };
+
+        // Flush outside of read lock
+        if should_flush {
+            let segment_managers = self.segment_managers.read().unwrap();
+            if let Some(manager) = segment_managers.get(collection) {
+                if let Err(e) = manager.flush_buffer() {
+                    tracing::error!("Auto-flush failed: {}", e);
+                } else {
+                    info!("Auto-flush completed successfully");
+                }
             }
         }
     }
