@@ -258,7 +258,7 @@ impl SearchExecutor {
                 }
             }
 
-            Query::Fuzzy { term, distance, .. } => {
+            Query::Fuzzy { term, distance: _, .. } => {
                 // Simplified fuzzy: exact match for now
                 // Full implementation would use Levenshtein distance on term dictionary
                 if let Ok(Some(doc_ids)) = segment.search_term(term) {

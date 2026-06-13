@@ -85,6 +85,7 @@ enum Commands {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AppState {
     engine: Arc<SearchEngine>,
     cache: Cache<String, String>,
@@ -94,11 +95,13 @@ pub struct AppState {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct RateLimitEntry {
     count: u32,
     last_reset: std::time::Instant,
 }
 
+#[allow(dead_code)]
 impl AppState {
     pub fn new(data_dir: &str) -> Self {
         let persistence = Arc::new(PersistenceManager::new(data_dir));
@@ -195,6 +198,7 @@ impl ApiResponse<()> {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[allow(dead_code)]
 enum ApiError {
     #[error("Collection not found: {0}")]
     CollectionNotFound(String),
@@ -251,6 +255,7 @@ struct BulkInsertRequest {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct SearchQuery {
     q: Option<String>,
     limit: Option<usize>,
