@@ -71,7 +71,7 @@ impl SearchEngine {
             if let Some(tokenizer) = tokenizers.get(collection) {
                 // Tokenize document
                 let mut tokens = Vec::new();
-                for (_, value) in &doc.fields {
+                for value in doc.fields.values() {
                     if let Some(text) = value.as_text() {
                         let field_tokens = tokenizer.tokenize(text);
                         tokens.extend(field_tokens);

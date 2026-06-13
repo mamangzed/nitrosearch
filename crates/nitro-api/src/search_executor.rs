@@ -244,7 +244,7 @@ impl SearchExecutor {
                                     .search_term(term)
                                     .ok()
                                     .flatten()
-                                    .map_or(false, |ids| ids.contains(&doc_id))
+                                    .is_some_and(|ids| ids.contains(&doc_id))
                             });
 
                             if all_terms_exist {
