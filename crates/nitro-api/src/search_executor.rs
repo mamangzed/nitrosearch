@@ -72,9 +72,14 @@ impl SearchExecutor {
             }
         }
 
-        // Sort by score and truncate to limit
+        // Sort by score (descending), then by doc_id (ascending) for deterministic results
         let mut scored_ids: Vec<(String, f64)> = global_scores.into_iter().collect();
-        scored_ids.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        scored_ids.sort_by(|a, b| {
+            match b.1.partial_cmp(&a.1).unwrap() {
+                std::cmp::Ordering::Equal => a.0.cmp(&b.0), // Secondary sort by doc_id
+                other => other,
+            }
+        });
         scored_ids.truncate(limit);
 
         // Build lookup map: doc_id -> Document from segments
