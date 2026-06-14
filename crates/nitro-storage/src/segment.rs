@@ -339,6 +339,7 @@ pub struct SegmentBuilder {
     postings: Vec<PostingList>,
     stored_docs: Vec<(u32, Vec<u8>)>,
     field_lengths: HashMap<String, u64>,
+    doc_id_mapping: HashMap<String, u32>, // doc_id string -> doc_num u32
 }
 
 impl SegmentBuilder {
@@ -349,6 +350,7 @@ impl SegmentBuilder {
             postings: Vec::new(),
             stored_docs: Vec::new(),
             field_lengths: HashMap::new(),
+            doc_id_mapping: HashMap::new(),
         }
     }
 
@@ -361,9 +363,10 @@ impl SegmentBuilder {
         });
     }
 
-    /// Add a stored document
-    pub fn add_stored_doc(&mut self, doc_id: u32, data: Vec<u8>) {
+    /// Add a stored document with original doc_id mapping
+    pub fn add_stored_doc(&mut self, doc_id: u32, doc_id_str: String, data: Vec<u8>) {
         self.stored_docs.push((doc_id, data));
+        self.doc_id_mapping.insert(doc_id_str, doc_id);
     }
 
     /// Add field length statistic
@@ -463,9 +466,9 @@ mod tests {
             vec![vec![0], vec![0], vec![0]],
         );
 
-        builder.add_stored_doc(1, b"doc1 data".to_vec());
-        builder.add_stored_doc(2, b"doc2 data".to_vec());
-        builder.add_stored_doc(3, b"doc3 data".to_vec());
+        builder.add_stored_doc(1, "doc1".to_string(), b"doc1 data".to_vec());
+        builder.add_stored_doc(2, "doc2".to_string(), b"doc2 data".to_vec());
+        builder.add_stored_doc(3, "doc3".to_string(), b"doc3 data".to_vec());
 
         builder.add_field_length("title", 100);
 
@@ -487,9 +490,9 @@ mod tests {
         let mut builder = Segment::builder(2, segment_path.clone());
 
         builder.add_posting("world".to_string(), vec![1, 2, 3], vec![]);
-        builder.add_stored_doc(1, b"doc1".to_vec());
-        builder.add_stored_doc(2, b"doc2".to_vec());
-        builder.add_stored_doc(3, b"doc3".to_vec());
+        builder.add_stored_doc(1, "doc1".to_string(), b"doc1".to_vec());
+        builder.add_stored_doc(2, "doc2".to_string(), b"doc2".to_vec());
+        builder.add_stored_doc(3, "doc3".to_string(), b"doc3".to_vec());
 
         let mut segment = builder.build().unwrap();
 

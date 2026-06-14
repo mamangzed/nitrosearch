@@ -328,7 +328,8 @@ impl SegmentManager {
 
         // Add all documents
         for (doc_id, data) in all_docs {
-            builder.add_stored_doc(doc_id, data);
+            // Use doc_id as string for mapping
+            builder.add_stored_doc(doc_id, doc_id.to_string(), data);
         }
 
         let segment = builder.build()?;
@@ -504,13 +505,13 @@ impl SegmentManager {
         let mut term_postings: std::collections::HashMap<String, Vec<u32>> =
             std::collections::HashMap::new();
 
-        for (doc_id, (doc, tokens)) in buffer.drain() {
-            let doc_num: u32 = doc_id.parse().unwrap_or(0);
+        for (doc_num, (doc_id, (doc, tokens))) in buffer.drain().enumerate() {
+            let doc_num = doc_num as u32;
 
             // Serialize and store document (use JSON + zstd compression)
             let doc_json = serde_json::to_vec(&doc).unwrap_or_default();
             let doc_bytes = zstd::encode_all(&doc_json[..], 3).unwrap_or_default();
-            builder.add_stored_doc(doc_num, doc_bytes);
+            builder.add_stored_doc(doc_num, doc_id, doc_bytes);
 
             // Build postings for each term
             for token in tokens {
@@ -586,7 +587,7 @@ mod tests {
         let segment_path = temp_dir.path().join("segment_1");
         let mut builder = SegmentBuilder::new(1, segment_path);
         builder.add_posting("test".to_string(), vec![1], vec![vec![]]);
-        builder.add_stored_doc(1, b"doc1".to_vec());
+        builder.add_stored_doc(1, "doc1".to_string(), b"doc1".to_vec());
         let segment = builder.build().unwrap();
 
         manager.add_segment(segment).unwrap();
