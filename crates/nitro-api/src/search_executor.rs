@@ -353,7 +353,8 @@ impl SearchExecutor {
                         for doc_id in doc_ids {
                             // Lower score for higher distance (more typos)
                             let base_score = scorer.score(&matched_term, &doc_id.to_string(), 1);
-                            let distance_penalty = 1.0 - (actual_distance as f64 / (*distance as f64 + 1.0));
+                            let distance_penalty =
+                                1.0 - (actual_distance as f64 / (*distance as f64 + 1.0));
                             let score = base_score * distance_penalty.max(0.1); // Minimum 10% of base score
 
                             *doc_scores.entry(doc_id.to_string()).or_insert(0.0) += score;

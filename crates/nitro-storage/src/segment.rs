@@ -343,7 +343,12 @@ impl Segment {
         Self::matches_wildcard_recursive(text, pattern, 0, 0)
     }
 
-    fn matches_wildcard_recursive(text: &str, pattern: &[WildcardPart], text_idx: usize, pattern_idx: usize) -> bool {
+    fn matches_wildcard_recursive(
+        text: &str,
+        pattern: &[WildcardPart],
+        text_idx: usize,
+        pattern_idx: usize,
+    ) -> bool {
         if pattern_idx >= pattern.len() {
             return text_idx >= text.len();
         }
@@ -354,7 +359,12 @@ impl Segment {
                     return false;
                 }
                 if &text[text_idx..text_idx + literal.len()] == literal.as_str() {
-                    Self::matches_wildcard_recursive(text, pattern, text_idx + literal.len(), pattern_idx + 1)
+                    Self::matches_wildcard_recursive(
+                        text,
+                        pattern,
+                        text_idx + literal.len(),
+                        pattern_idx + 1,
+                    )
                 } else {
                     false
                 }
@@ -378,7 +388,11 @@ impl Segment {
     }
 
     /// Search for terms within edit distance of the given term
-    pub fn search_fuzzy(&self, term: &str, max_distance: usize) -> Result<Vec<(String, Vec<u32>, usize)>, SegmentError> {
+    pub fn search_fuzzy(
+        &self,
+        term: &str,
+        max_distance: usize,
+    ) -> Result<Vec<(String, Vec<u32>, usize)>, SegmentError> {
         let mut results = Vec::new();
 
         for indexed_term in self.term_index.keys() {
