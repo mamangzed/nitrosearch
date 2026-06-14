@@ -84,16 +84,25 @@ impl SearchExecutor {
             for segment in segments {
                 if let Ok(doc_id_num) = doc_id.parse::<u32>() {
                     match segment.get_document(doc_id_num) {
-                        Ok(Some(doc_bytes)) => match serde_json::from_slice::<Document>(&doc_bytes)
-                        {
-                            Ok(doc) => {
-                                doc_lookup.insert(doc_id.clone(), doc);
-                                break;
+                        Ok(Some(doc_bytes)) => {
+                            // Try JSON first (new format), fallback to bincode (old format)
+                            let doc_result = serde_json::from_slice::<Document>(&doc_bytes)
+                                .or_else(|_| bincode::deserialize::<Document>(&doc_bytes));
+
+                            match doc_result {
+                                Ok(doc) => {
+                                    doc_lookup.insert(doc_id.clone(), doc);
+                                    break;
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "Failed to deserialize doc {} (tried JSON and bincode): {}",
+                                        doc_id,
+                                        e
+                                    );
+                                }
                             }
-                            Err(e) => {
-                                tracing::warn!("Failed to deserialize doc {}: {}", doc_id, e);
-                            }
-                        },
+                        }
                         Ok(None) => {
                             tracing::warn!(
                                 "Document {} not found in segment (may be in buffer)",
