@@ -86,11 +86,12 @@ impl SearchExecutor {
                     match segment.get_document(doc_id_num) {
                         Ok(Some(doc_bytes)) => {
                             // Decompress with zstd first, then deserialize from JSON
-                            let doc_result = zstd::decode_all(&doc_bytes[..])
-                                .ok()
-                                .and_then(|decompressed| {
-                                    serde_json::from_slice::<Document>(&decompressed).ok()
-                                });
+                            let doc_result =
+                                zstd::decode_all(&doc_bytes[..])
+                                    .ok()
+                                    .and_then(|decompressed| {
+                                        serde_json::from_slice::<Document>(&decompressed).ok()
+                                    });
 
                             match doc_result {
                                 Some(doc) => {
