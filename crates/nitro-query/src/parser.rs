@@ -80,17 +80,51 @@ impl QueryParser {
                 }
             }
 
+            // Check for wildcard/prefix pattern
+            let term_lower = rest.to_lowercase();
+            if term_lower.contains('*') {
+                // If ends with *, treat as prefix search
+                if term_lower.ends_with('*') && !term_lower.contains('?') {
+                    return Query::Prefix {
+                        field: field.to_string(),
+                        prefix: term_lower.trim_end_matches('*').to_string(),
+                    };
+                } else {
+                    // Otherwise treat as wildcard
+                    return Query::Wildcard {
+                        field: field.to_string(),
+                        pattern: term_lower,
+                    };
+                }
+            }
+
             return Query::Term {
                 field: field.to_string(),
-                term: rest.to_lowercase(),
+                term: term_lower,
                 boost,
             };
+        }
+
+        // Check for wildcard/prefix pattern in default field
+        let term_lower = query_str.to_lowercase();
+        if term_lower.contains('*') {
+            if term_lower.ends_with('*') && !term_lower.contains('?') {
+                return Query::Prefix {
+                    field: "_all".to_string(),
+                    prefix: term_lower.trim_end_matches('*').to_string(),
+                };
+            } else {
+                return Query::Wildcard {
+                    field: "_all".to_string(),
+                    pattern: term_lower,
+                };
+            }
         }
 
         // Default: simple term query
         Query::Term {
             field: "_all".to_string(),
-            term: query_str.to_lowercase(),
+            term: term_lower,
             boost: None,
         }
     }

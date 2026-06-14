@@ -314,19 +314,54 @@ impl SearchExecutor {
                 }
             }
 
-            Query::Fuzzy {
-                term, distance: _, ..
-            } => {
-                // Simplified fuzzy: exact match for now
-                // Full implementation would use Levenshtein distance on term dictionary
-                if let Ok(Some(doc_ids)) = segment.search_term(term) {
-                    for doc_id in doc_ids {
-                        let score = scorer.score(term, &doc_id.to_string(), 1);
-                        *doc_scores.entry(doc_id.to_string()).or_insert(0.0) += score;
-                        matched_terms
-                            .entry(doc_id.to_string())
-                            .or_default()
-                            .push(term.clone());
+            Query::Prefix { prefix, .. } => {
+                tracing::debug!("Prefix search for: '{}'", prefix);
+                if let Ok(matching_terms) = segment.search_prefix(prefix) {
+                    for (term, doc_ids) in matching_terms {
+                        for doc_id in doc_ids {
+                            let score = scorer.score(&term, &doc_id.to_string(), 1);
+                            *doc_scores.entry(doc_id.to_string()).or_insert(0.0) += score;
+                            matched_terms
+                                .entry(doc_id.to_string())
+                                .or_default()
+                                .push(term.clone());
+                        }
+                    }
+                }
+            }
+
+            Query::Wildcard { pattern, .. } => {
+                tracing::debug!("Wildcard search for: '{}'", pattern);
+                if let Ok(matching_terms) = segment.search_wildcard(pattern) {
+                    for (term, doc_ids) in matching_terms {
+                        for doc_id in doc_ids {
+                            let score = scorer.score(&term, &doc_id.to_string(), 1);
+                            *doc_scores.entry(doc_id.to_string()).or_insert(0.0) += score;
+                            matched_terms
+                                .entry(doc_id.to_string())
+                                .or_default()
+                                .push(term.clone());
+                        }
+                    }
+                }
+            }
+
+            Query::Fuzzy { term, distance, .. } => {
+                tracing::debug!("Fuzzy search for: '{}' with distance {}", term, distance);
+                if let Ok(matching_terms) = segment.search_fuzzy(term, *distance as usize) {
+                    for (matched_term, doc_ids, actual_distance) in matching_terms {
+                        for doc_id in doc_ids {
+                            // Lower score for higher distance (more typos)
+                            let base_score = scorer.score(&matched_term, &doc_id.to_string(), 1);
+                            let distance_penalty = 1.0 - (actual_distance as f64 / (*distance as f64 + 1.0));
+                            let score = base_score * distance_penalty.max(0.1); // Minimum 10% of base score
+
+                            *doc_scores.entry(doc_id.to_string()).or_insert(0.0) += score;
+                            matched_terms
+                                .entry(doc_id.to_string())
+                                .or_default()
+                                .push(format!("{}~{}", matched_term, actual_distance));
+                        }
                     }
                 }
             }

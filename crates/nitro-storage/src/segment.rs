@@ -80,6 +80,13 @@ struct TermInfo {
     postings_len: u64,
 }
 
+#[derive(Debug, Clone)]
+enum WildcardPart {
+    Literal(String),
+    Star,
+    Question,
+}
+
 impl Segment {
     /// Create a new segment builder
     pub fn builder(id: u64, path: PathBuf) -> SegmentBuilder {
@@ -266,6 +273,162 @@ impl Segment {
             .collect();
 
         Ok(Some(doc_ids))
+    }
+
+    /// Search for terms with a given prefix
+    pub fn search_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u32>)>, SegmentError> {
+        let mut results = Vec::new();
+
+        for term in self.term_index.keys() {
+            if term.starts_with(prefix) {
+                if let Ok(Some(doc_ids)) = self.search_term(term) {
+                    results.push((term.clone(), doc_ids));
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Search for terms matching a wildcard pattern (supports * and ?)
+    pub fn search_wildcard(&self, pattern: &str) -> Result<Vec<(String, Vec<u32>)>, SegmentError> {
+        let mut results = Vec::new();
+        let pattern_parts = Self::compile_wildcard_pattern(pattern);
+
+        for term in self.term_index.keys() {
+            if Self::matches_wildcard(term, &pattern_parts) {
+                if let Ok(Some(doc_ids)) = self.search_term(term) {
+                    results.push((term.clone(), doc_ids));
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn compile_wildcard_pattern(pattern: &str) -> Vec<WildcardPart> {
+        let mut parts = Vec::new();
+        let mut current_literal = String::new();
+
+        for ch in pattern.chars() {
+            match ch {
+                '*' => {
+                    if !current_literal.is_empty() {
+                        parts.push(WildcardPart::Literal(current_literal.clone()));
+                        current_literal.clear();
+                    }
+                    parts.push(WildcardPart::Star);
+                }
+                '?' => {
+                    if !current_literal.is_empty() {
+                        parts.push(WildcardPart::Literal(current_literal.clone()));
+                        current_literal.clear();
+                    }
+                    parts.push(WildcardPart::Question);
+                }
+                _ => {
+                    current_literal.push(ch);
+                }
+            }
+        }
+
+        if !current_literal.is_empty() {
+            parts.push(WildcardPart::Literal(current_literal));
+        }
+
+        parts
+    }
+
+    fn matches_wildcard(text: &str, pattern: &[WildcardPart]) -> bool {
+        Self::matches_wildcard_recursive(text, pattern, 0, 0)
+    }
+
+    fn matches_wildcard_recursive(text: &str, pattern: &[WildcardPart], text_idx: usize, pattern_idx: usize) -> bool {
+        if pattern_idx >= pattern.len() {
+            return text_idx >= text.len();
+        }
+
+        match &pattern[pattern_idx] {
+            WildcardPart::Literal(literal) => {
+                if text_idx + literal.len() > text.len() {
+                    return false;
+                }
+                if &text[text_idx..text_idx + literal.len()] == literal.as_str() {
+                    Self::matches_wildcard_recursive(text, pattern, text_idx + literal.len(), pattern_idx + 1)
+                } else {
+                    false
+                }
+            }
+            WildcardPart::Star => {
+                // Try matching 0 or more characters
+                for i in text_idx..=text.len() {
+                    if Self::matches_wildcard_recursive(text, pattern, i, pattern_idx + 1) {
+                        return true;
+                    }
+                }
+                false
+            }
+            WildcardPart::Question => {
+                if text_idx >= text.len() {
+                    return false;
+                }
+                Self::matches_wildcard_recursive(text, pattern, text_idx + 1, pattern_idx + 1)
+            }
+        }
+    }
+
+    /// Search for terms within edit distance of the given term
+    pub fn search_fuzzy(&self, term: &str, max_distance: usize) -> Result<Vec<(String, Vec<u32>, usize)>, SegmentError> {
+        let mut results = Vec::new();
+
+        for indexed_term in self.term_index.keys() {
+            let distance = Self::levenshtein_distance(term, indexed_term);
+            if distance <= max_distance {
+                if let Ok(Some(doc_ids)) = self.search_term(indexed_term) {
+                    results.push((indexed_term.clone(), doc_ids, distance));
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    fn levenshtein_distance(a: &str, b: &str) -> usize {
+        let a_chars: Vec<char> = a.chars().collect();
+        let b_chars: Vec<char> = b.chars().collect();
+        let a_len = a_chars.len();
+        let b_len = b_chars.len();
+
+        if a_len == 0 {
+            return b_len;
+        }
+        if b_len == 0 {
+            return a_len;
+        }
+
+        let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
+
+        for i in 0..=a_len {
+            matrix[i][0] = i;
+        }
+        for j in 0..=b_len {
+            matrix[0][j] = j;
+        }
+
+        for i in 1..=a_len {
+            for j in 1..=b_len {
+                let cost = if a_chars[i - 1] == b_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
+                matrix[i][j] = (matrix[i - 1][j] + 1)
+                    .min(matrix[i][j - 1] + 1)
+                    .min(matrix[i - 1][j - 1] + cost);
+            }
+        }
+
+        matrix[a_len][b_len]
     }
 
     /// Mark a document as deleted
