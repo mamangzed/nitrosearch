@@ -85,20 +85,22 @@ impl SearchExecutor {
                 if let Ok(doc_id_num) = doc_id.parse::<u32>() {
                     match segment.get_document(doc_id_num) {
                         Ok(Some(doc_bytes)) => {
-                            // Try JSON first (new format), fallback to bincode (old format)
-                            let doc_result = serde_json::from_slice::<Document>(&doc_bytes)
-                                .or_else(|_| bincode::deserialize::<Document>(&doc_bytes));
+                            // Decompress with zstd first, then deserialize from JSON
+                            let doc_result = zstd::decode_all(&doc_bytes[..])
+                                .ok()
+                                .and_then(|decompressed| {
+                                    serde_json::from_slice::<Document>(&decompressed).ok()
+                                });
 
                             match doc_result {
-                                Ok(doc) => {
+                                Some(doc) => {
                                     doc_lookup.insert(doc_id.clone(), doc);
                                     break;
                                 }
-                                Err(e) => {
+                                None => {
                                     tracing::warn!(
-                                        "Failed to deserialize doc {} (tried JSON and bincode): {}",
-                                        doc_id,
-                                        e
+                                        "Failed to deserialize doc {}. Old bincode data is not compatible, please re-index.",
+                                        doc_id
                                     );
                                 }
                             }
