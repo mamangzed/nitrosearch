@@ -166,7 +166,9 @@ impl SearchExecutor {
     ) {
         match query {
             Query::Term { term, boost, .. } => {
+                tracing::debug!("Searching for term: '{}' in segment", term);
                 if let Ok(Some(doc_ids)) = segment.search_term(term) {
+                    tracing::debug!("Found term '{}' in doc_ids: {:?}", term, doc_ids);
                     for doc_id in doc_ids {
                         let tf = 1; // Simplified, would calculate actual term frequency
                         let mut score = scorer.score(term, &doc_id.to_string(), tf);
@@ -182,6 +184,8 @@ impl SearchExecutor {
                             .or_default()
                             .push(term.clone());
                     }
+                } else {
+                    tracing::debug!("Term '{}' not found in segment", term);
                 }
             }
 

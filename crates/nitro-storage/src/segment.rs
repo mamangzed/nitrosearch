@@ -228,9 +228,16 @@ impl Segment {
 
     /// Search for a term and return its posting list
     pub fn search_term(&self, term: &str) -> Result<Option<Vec<u32>>, SegmentError> {
+        tracing::debug!("Segment search_term: looking for '{}'", term);
         let term_info = match self.term_index.get(term) {
-            Some(info) => info,
-            None => return Ok(None),
+            Some(info) => {
+                tracing::debug!("Found term '{}' in index, offset: {}, len: {}", term, info.postings_offset, info.postings_len);
+                info
+            },
+            None => {
+                tracing::debug!("Term '{}' NOT found in segment index", term);
+                return Ok(None);
+            }
         };
 
         let postings_mmap = match &self.postings_mmap {
